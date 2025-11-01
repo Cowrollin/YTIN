@@ -1,0 +1,194 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:YTIN"
+        Width="700"
+        Height="550"
+        x:Class="YTIN.MainWindow"
+        x:DataType="local:MainWindow"
+        Title="YTIN"
+        Background="#1E1E1E"
+        >
+
+    <Window.Styles>
+        <!-- Текстовое поле -->
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="BorderBrush" Value="#3A3A3A"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8"/>
+        </Style>
+
+        <!-- Кнопки -->
+        <Style Selector="Button.h1">
+            <Setter Property="Background" Value="#0078D7"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- ComboBox -->
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#3A3A3A"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="6,2"/>
+        </Style>
+
+        <!-- ListBox -->
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="IsEnabled" Value="False"/>
+        </Style>
+
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        
+        <Style Selector="TabItem">
+            <Setter Property="MinHeight" Value="30"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,*" Margin="20">
+        
+        <!-- Поле ввода URL + кнопка загрузки -->
+        <Grid Name="UrlInput" Grid.Row="0" Height="70" Width="650" VerticalAlignment="Top" Margin="0,20,0,0">
+            <Border Background="#2D2D30" CornerRadius="8" Padding="10" BoxShadow="0 2 6 #00000080">
+                <Grid Width="630">
+                    <TextBox Background="#2D2D30"
+                             BorderThickness="0"
+                             FontSize="18" HorizontalAlignment="Stretch"
+                             FontWeight="Medium"
+                             Watermark="Вставьте ссылку на видео..."
+                             VerticalContentAlignment="Center"
+                             Text="{Binding InputUrl}"
+                             Margin="0,0,0,0"/>
+
+                    <Border Background="#0078D7" CornerRadius="6" Height="35" Width="210" Margin="0 0 10 0" HorizontalAlignment="Right">
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox Name="Formats" VerticalAlignment="Center"
+                                      Width="130" Height="35"
+                                      BorderBrush="Transparent"
+                                      Background="#0078D7"
+                                      Foreground="White"
+                                      FontSize="14"
+                                      ItemsSource="{Binding FormatList}"
+                                      SelectedItem="{Binding FormatDownload}"
+                                      CornerRadius="6,0,0,6"
+                                      SelectionChanged="ChangeFormatDownload_IsComboBoxSelect"/>
+                            <Button Content="DW" VerticalAlignment="Center" Classes="h1"
+                                    Name="DownloadButton"
+                                    Background="#0078D7"
+                                    Width="80" Height="35"
+                                    FontSize="17"
+                                    CornerRadius="0,6,6,0"
+                                    Click="DownloadButton_IsClicked"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Каталог сохранения -->
+        <Border Name="SaveDirectory" Grid.Row="1" Background="#2D2D30" Height="45" Width="650"
+                CornerRadius="8" Margin="0,15,0,0" BoxShadow="0 2 6 #00000080">
+            <Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    FontSize="14" VerticalContentAlignment="Center" Classes="h1"
+                    Background="Transparent"
+                    Click="SetSaveDirectoryButton_IsClicked">
+                <TextBlock Text="{Binding DownloadDirectory}"  
+                           Foreground="DarkGray" Margin="10 0 10 0"/>
+            </Button>
+        </Border>
+
+        <Border Grid.Row="2" Background="Transparent" Height="80">
+            
+        </Border>
+        
+        <!-- Список загрузок / лог -->
+        <TabControl Grid.Row="3" Width="650" MinHeight="250" Margin="0 0 0 50">
+            <!-- Download menu -->
+            <TabItem Header="Download" Background="#252526"
+                     Margin="0 0 0 0" CornerRadius="8 0 0 0"
+                     FontSize="15">
+                <Border Name="DownloadList" Background="#252526" Margin="0 -2 0 0" Width="650"
+                        CornerRadius="0 8 8 8" BoxShadow="0 2 6 #00000080">
+                    <ScrollViewer>
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{Binding DownloadsList}" Padding="5">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button CornerRadius="8" Background="#2D2D30" HorizontalAlignment="Stretch"
+                                                Height="30" Margin="0 0 0 6" VerticalContentAlignment="Bottom"
+                                                Click="DownloadItem_IsClicked" Tag="{Binding}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding FileName}" 
+                                                           FontSize="10" MaxWidth="230"
+                                                           Foreground="DarkGray" TextWrapping="Wrap"
+                                                           FontFamily="Consolas" MaxLines="1" Margin="10 0 0 0"
+                                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                <ProgressBar Minimum="0" Maximum="100" MinWidth="150" MaxWidth="200"
+                                                             FontFamily="Consolas" FontSize="15" 
+                                                             VerticalAlignment="Center" Margin="30 -3 0 0"
+                                                             Value="{Binding Progress}"
+                                                             Foreground="#0078D7" ShowProgressText="True"
+                                                             Height="15"/> 
+                                                <TextBlock Text="{Binding Speed}"
+                                                           FontSize="10" Margin="20 0 0 0"
+                                                           Foreground="DarkGray" TextWrapping="Wrap"
+                                                           FontFamily="Consolas" MinWidth="62" MaxLines="1"
+                                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Eta}"
+                                                           FontSize="10" Margin="7 0 0 0"
+                                                           Foreground="DarkGray" TextWrapping="Wrap"
+                                                           FontFamily="Consolas" MinWidth="50" MaxLines="1"
+                                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+            <!-- LOG menu -->
+            <TabItem Header="Logs" Background="#252526" 
+                     CornerRadius="0 8 0 0"
+                     FontSize="15">
+                <Border Name="LogList" Background="#252526" Margin="0 -2 0 0" MinWidth="650"
+                        CornerRadius="0 8 8 8" BoxShadow="0 2 6 #00000080">
+                    <ScrollViewer>
+                        <StackPanel>
+                            <ListBox ItemsSource="{Binding Logs}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border MinHeight="10" CornerRadius="8">
+                                            <TextBlock Text="{Binding .}" 
+                                                       FontSize="10" 
+                                                       Foreground="#DCDCDC" TextWrapping="Wrap"
+                                                       FontFamily="Consolas"
+                                                       HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                        </Border>
+                                
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+        </TabControl>
+        
+    </Grid>
+</Window>
