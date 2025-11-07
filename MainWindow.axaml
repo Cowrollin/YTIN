@@ -59,12 +59,12 @@
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto,Auto,*,*" Margin="20">
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="20">
         
         <!-- Поле ввода URL + кнопка загрузки -->
-        <Grid Name="UrlInput" Grid.Row="0" Height="70" Width="650" VerticalAlignment="Top" Margin="0,20,0,0">
+        <Grid Name="UrlInput" Grid.Row="0" Height="70" HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="0,20,0,0">
             <Border Background="#2D2D30" CornerRadius="8" Padding="10" BoxShadow="0 2 6 #00000080">
-                <Grid Width="630">
+                <Grid>
                     <TextBox Background="#2D2D30"
                              BorderThickness="0"
                              FontSize="18" HorizontalAlignment="Stretch"
@@ -74,25 +74,27 @@
                              Text="{Binding InputUrl}"
                              Margin="0,0,0,0"/>
 
-                    <Border Background="#0078D7" CornerRadius="6" Height="35" Width="210" Margin="0 0 10 0" HorizontalAlignment="Right">
+                    <Border Background="#0078D7" CornerRadius="6" Height="35" Margin="30 0 7 0" HorizontalAlignment="Right">
                         <StackPanel Orientation="Horizontal">
                             <ComboBox Name="Formats" VerticalAlignment="Center"
-                                      Width="130" Height="35"
+                                      MaxWidth="170" Height="35"
                                       BorderBrush="Transparent"
                                       Background="#0078D7"
                                       Foreground="White"
                                       FontSize="14"
                                       ItemsSource="{Binding FormatList}"
-                                      SelectedItem="{Binding FormatDownload}"
+                                      SelectedItem="{Binding SelectedFormat}"
                                       CornerRadius="6,0,0,6"
                                       SelectionChanged="ChangeFormatDownload_IsComboBoxSelect"/>
-                            <Button Content="DW" VerticalAlignment="Center" Classes="h1"
+                            <Button VerticalAlignment="Center" Classes="h1"
                                     Name="DownloadButton"
                                     Background="#0078D7"
-                                    Width="80" Height="35"
+                                    MinWidth="80" Height="35"
                                     FontSize="17"
                                     CornerRadius="0,6,6,0"
-                                    Click="DownloadButton_IsClicked"/>
+                                    Click="DownloadButton_IsClicked" HorizontalContentAlignment="Left">
+                                <Image Source="avares://YTIN/Icons/download.png" Stretch="Uniform"/>
+                            </Button>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -100,7 +102,7 @@
         </Grid>
 
         <!-- Каталог сохранения -->
-        <Border Name="SaveDirectory" Grid.Row="1" Background="#2D2D30" Height="45" Width="650"
+        <Border Name="SaveDirectory" Grid.Row="1" Background="#2D2D30" Height="45" HorizontalAlignment="Stretch"
                 CornerRadius="8" Margin="0,15,0,0" BoxShadow="0 2 6 #00000080">
             <Button HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                     FontSize="14" VerticalContentAlignment="Center" Classes="h1"
@@ -111,17 +113,18 @@
             </Button>
         </Border>
 
-        <Border Grid.Row="2" Background="Transparent" Height="80">
-            
+        <Border Grid.Row="2" Background="Transparent" Margin="0 15 0 0"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
         </Border>
         
         <!-- Список загрузок / лог -->
-        <TabControl Grid.Row="3" Width="650" MinHeight="250" Margin="0 0 0 50">
+        <TabControl Grid.Row="3" MaxHeight="250" Margin="0 15 -12 0" 
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             <!-- Download menu -->
             <TabItem Header="Download" Background="#252526"
                      Margin="0 0 0 0" CornerRadius="8 0 0 0"
-                     FontSize="15">
-                <Border Name="DownloadList" Background="#252526" Margin="0 -2 0 0" Width="650"
+                     FontSize="15" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <Border Name="DownloadList" Background="#252526" Margin="-12 -2 0 0"
                         CornerRadius="0 8 8 8" BoxShadow="0 2 6 #00000080">
                     <ScrollViewer>
                         <StackPanel>
@@ -130,30 +133,56 @@
                                     <DataTemplate>
                                         <Button CornerRadius="8" Background="#2D2D30" HorizontalAlignment="Stretch"
                                                 Height="30" Margin="0 0 0 6" VerticalContentAlignment="Bottom"
-                                                Click="DownloadItem_IsClicked" Tag="{Binding}">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{Binding FileName}" 
-                                                           FontSize="10" MaxWidth="230"
+                                                DoubleTapped="DownloadItem_IsClicked" Tag="{Binding}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <!-- FileName -->
+                                                    <ColumnDefinition Width="*" MinWidth="30"/>
+                                                    <!-- ProgressBar -->
+                                                    <ColumnDefinition Width="200"/>
+                                                    <!-- Speed -->
+                                                    <ColumnDefinition Width="*" MaxWidth="60"/>
+                                                    <!-- ETA -->
+                                                    <ColumnDefinition Width="*" MaxWidth="50"/>
+                                                    <!-- FileSize -->
+                                                    <ColumnDefinition Width="*" MaxWidth="60"/>
+                                                    <!-- RemoveButton -->
+                                                    <ColumnDefinition Width="*" MaxWidth="40"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding FileName}" 
+                                                           FontSize="10"
+                                                           Foreground="DarkGray" TextWrapping="NoWrap"
+                                                           FontFamily="Consolas" MaxLines="1" Margin="5 5 -15 0"
+                                                           HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                                                <ProgressBar Grid.Column="1" Minimum="0" Maximum="100"
+                                                           FontFamily="Consolas" FontSize="15"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center" 
+                                                           Margin="0 0 10 0"
+                                                           Value="{Binding Progress}"
+                                                           Foreground="#0078D7" ShowProgressText="True"
+                                                           Height="15"/> 
+                                                <TextBlock Grid.Column="2" Text="{Binding Speed}"
+                                                           FontSize="10" Margin="0 5 10 0"
                                                            Foreground="DarkGray" TextWrapping="Wrap"
-                                                           FontFamily="Consolas" MaxLines="1" Margin="10 0 0 0"
-                                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                                <ProgressBar Minimum="0" Maximum="100" MinWidth="150" MaxWidth="200"
-                                                             FontFamily="Consolas" FontSize="15" 
-                                                             VerticalAlignment="Center" Margin="30 -3 0 0"
-                                                             Value="{Binding Progress}"
-                                                             Foreground="#0078D7" ShowProgressText="True"
-                                                             Height="15"/> 
-                                                <TextBlock Text="{Binding Speed}"
-                                                           FontSize="10" Margin="20 0 0 0"
+                                                           FontFamily="Consolas" MaxLines="1"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Eta}"
+                                                           FontSize="10" Margin="0 5 10 0"
                                                            Foreground="DarkGray" TextWrapping="Wrap"
-                                                           FontFamily="Consolas" MinWidth="62" MaxLines="1"
-                                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding Eta}"
-                                                           FontSize="10" Margin="7 0 0 0"
+                                                           FontFamily="Consolas" MaxLines="1"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="4" Text="{Binding CompactSize}"
+                                                           FontSize="10" Margin="0 5 0 0"
                                                            Foreground="DarkGray" TextWrapping="Wrap"
-                                                           FontFamily="Consolas" MinWidth="50" MaxLines="1"
-                                                           HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                            </StackPanel>
+                                                           FontFamily="Consolas" MaxLines="1"
+                                                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="5" Width="20" Height="20" Padding="3" Background="#0078D7"
+                                                            Click="RemoveMediaItem_IsClicked" Tag="{Binding }"
+                                                            VerticalAlignment="Center" HorizontalAlignment="Right" 
+                                                            Margin="0 1 0 0">
+                                                    <Image Source="avares://YTIN/Icons/close.png" Stretch="Uniform"/>
+                                                </Button>
+                                            </Grid>
                                         </Button>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -166,7 +195,7 @@
             <TabItem Header="Logs" Background="#252526" 
                      CornerRadius="0 8 0 0"
                      FontSize="15">
-                <Border Name="LogList" Background="#252526" Margin="0 -2 0 0" MinWidth="650"
+                <Border Name="LogList" Background="#252526" Margin="-12 -2 0 0"
                         CornerRadius="0 8 8 8" BoxShadow="0 2 6 #00000080">
                     <ScrollViewer>
                         <StackPanel>
@@ -178,7 +207,7 @@
                                                        FontSize="10" 
                                                        Foreground="#DCDCDC" TextWrapping="Wrap"
                                                        FontFamily="Consolas"
-                                                       HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                                       HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
                                         </Border>
                                 
                                     </DataTemplate>

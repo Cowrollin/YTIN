@@ -19,5 +19,8 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+        <AvaloniaResource Include="Icons\**"/>
+        <PackageReference Include="VisualStateManager" Version="1.0.2" />
     </ItemGroup>
 </Project>

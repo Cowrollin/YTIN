@@ -13,3 +13,5 @@ project.lock.json
 x64/
 [Bb]in/
 [Oo]bj/
+
+history.json

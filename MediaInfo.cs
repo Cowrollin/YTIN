@@ -12,7 +12,8 @@ public class MediaInfo : INotifyPropertyChanged
     private string _extinsion;
     private string _format;
     private string _fps;
-    private double _fileSize;
+    private double _size;
+    private string _compactSize;
     
     private string _title;
     private double _progress;
@@ -25,6 +26,7 @@ public class MediaInfo : INotifyPropertyChanged
     
     public ObservableCollection<MediaFormat> formats { get; set; } = new ();
 
+    
     public string Id
     {
         get => _id;
@@ -41,7 +43,7 @@ public class MediaInfo : INotifyPropertyChanged
         get => _extinsion;
         set { _extinsion = value; OnPropertyChanged(nameof(Extinsion)); }
     }
-    public string Format
+    public string? Format
     {
         get => _format;
         set { _format = value; OnPropertyChanged(nameof(Format)); }
@@ -51,10 +53,16 @@ public class MediaInfo : INotifyPropertyChanged
         get => _fps;
         set { _fps = value; OnPropertyChanged(nameof(Fps)); }
     }
-    public double FileSize
+    public double Size
     {
-        get => _fileSize;
-        set { _fileSize = value; OnPropertyChanged(nameof(FileSize)); }
+        get => _size;
+        set { _size = value; OnPropertyChanged(nameof(Size)); }
+    }
+    
+    public string CompactSize
+    {
+        get => _compactSize;
+        set { _compactSize = value; OnPropertyChanged(nameof(CompactSize)); }
     }
     
     public string Title

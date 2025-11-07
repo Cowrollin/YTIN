@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
@@ -13,23 +16,19 @@ namespace YTIN;
 
 public class Downloader
 {
-    private Process? _process;
-    public double ProgressPercent { get; private set; }
-    public string DownloadSpeed { get; private set; } = string.Empty;
-    public string TimeRemaining { get; private set; } = string.Empty;
-    private string StatusLine { get;  set; } = string.Empty;
-    
+    private Process? _downloadProcess;
+    private Process? _getInfoProcess;
     public event Action? OnDownloadFinished;
     public event Action? OnErrorOccurred;
     public event Action? OnProgressUpdated;
 
     public async Task<MediaInfo> GetMediaInfo(string url)
     {
-        var process = new Process
+        _getInfoProcess = new Process
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = "yt-dlp.exe",
+                FileName = Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "yt-dlp.exe"),
                 Arguments = $"--dump-json --no-warnings \"{url}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -37,40 +36,57 @@ public class Downloader
                 CreateNoWindow = true
             }
         };
-        string? jsonOutput = null;
         
-        process.OutputDataReceived += (s, e) =>
+        try
         {
-            if (!string.IsNullOrWhiteSpace(e.Data))
+            _getInfoProcess.Start();
+            
+            var outputTask = _getInfoProcess.StandardOutput.ReadToEndAsync();
+            var errorTask = _getInfoProcess.StandardError.ReadToEndAsync();
+            
+            await _getInfoProcess.WaitForExitAsync();
+            await Task.WhenAll(outputTask, errorTask);
+            
+            string jsonOutput = outputTask.Result;
+            string errorOutput = errorTask.Result;
+            
+            if (!string.IsNullOrEmpty(errorOutput))
             {
-                jsonOutput += e.Data;
+                Console.WriteLine("YT-DLP error: " + errorOutput);
             }
-        };
-        process.ErrorDataReceived += (s, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-                Console.WriteLine("YT-DLP error: " + e.Data);
-        };
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        await process.WaitForExitAsync();
-        if (!string.IsNullOrWhiteSpace(jsonOutput))
-        {
-            return ParseMedia(jsonOutput);
+        
+            if (!string.IsNullOrWhiteSpace(jsonOutput))
+            {
+                return ParseMedia(jsonOutput);
+            }
+            else
+            {
+                MainWindow.Logs.Add($"[ERROR] No output received for URL: {url}");
+            }
         }
-        MainWindow.Logs.Add($"[ERROR] Url is invalid: {url}");
+        catch (Exception e)
+        {
+            Console.WriteLine($"error ! {e}");
+            MainWindow.Logs.Add($"[ERROR] Url is invalid: {url}");
+            throw;
+        }
+        finally
+        {
+            _getInfoProcess.Dispose();
+        }
+        
         return null!;
     }
+    
     private static MediaInfo ParseMedia(string? json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
-
+        
         var info = new MediaInfo
         {
             Id = root.TryGetProperty("id", out var id) ? id.GetString() : null,
-            Title = root.TryGetProperty("title", out var t) ? t.GetString() : null,
+            Title = root.TryGetProperty("title", out var t) ? t.GetString() : null
         };
 
         var formats = new ObservableCollection<MediaFormat>();
@@ -80,10 +96,10 @@ public class Downloader
             {
                 var mediaFormat = new MediaFormat
                 {
-                    format_id = GetJsonValueAsString(element, "format_id"),
-                    ext = GetJsonValueAsString(element, "ext"),
-                    resolution = GetJsonValueAsString(element, "resolution"),
-                    fps = GetJsonValueAsString(element, "fps")
+                    FormatId = GetJsonValueAsString(element, "format_id"),
+                    Ext = GetJsonValueAsString(element, "ext"),
+                    Resolution = GetJsonValueAsString(element, "resolution"),
+                    Fps = GetJsonValueAsString(element, "fps")
                 };
                 formats.Add(mediaFormat);
             }
@@ -106,15 +122,13 @@ public class Downloader
         };
     }
     
-    
-    
     public async Task StartDownloadAsync(string arguments, MediaInfo mediaInfo)
     {
-        _process = new Process()
+        _downloadProcess = new Process()
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = "yt-dlp.exe",
+                FileName = Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "yt-dlp.exe"),
                 Arguments = arguments,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -124,21 +138,23 @@ public class Downloader
             EnableRaisingEvents = true
         };
         
-        _process.OutputDataReceived += (s, e) =>
+        _downloadProcess.OutputDataReceived += (s, e) =>
         {
+            Console.WriteLine(e.Data);
             ParseProgress(e.Data, mediaInfo);
         };
-        _process.ErrorDataReceived += (s, e) =>
+        _downloadProcess.ErrorDataReceived += (s, e) =>
         {
-
+            Console.WriteLine(e.Data);
         };
-        _process.Exited += (s, e) => OnDownloadFinished?.Invoke();
+        _downloadProcess.Exited += (s, e) => OnDownloadFinished?.Invoke();
 
-        _process.Start();
-        _process.BeginOutputReadLine();
-        _process.BeginErrorReadLine();
+        _downloadProcess.Start();
+        _downloadProcess.BeginOutputReadLine();
+        _downloadProcess.BeginErrorReadLine();
         
-        await _process.WaitForExitAsync();
+        await _downloadProcess.WaitForExitAsync();
+        _downloadProcess.Dispose();
     }
 
     private void ParseProgress(string? line, MediaInfo mi)
@@ -149,7 +165,7 @@ public class Downloader
         );
 
         Regex FinishedRegex = new Regex(
-            @"\[download\]\s+100%.*?in\s+(?<eta>\S+)\s+at\s+(?<speed>[\d\.]+\w+/s)",
+            @"\[download\]\s+100%\s+of\s+(?<size>[\d\.]+\s*\w+)",
             RegexOptions.Compiled | RegexOptions.IgnoreCase
         );
 
@@ -171,19 +187,20 @@ public class Downloader
         match = FinishedRegex.Match(line);
         if (match.Success)
         {
+            mi.CompactSize = match.Groups["size"].Value.Trim();
             mi.Progress = 100.0;
-            mi.Speed = "0 KiB/s";
-            mi.Eta = "00:00";
+            mi.Speed = "-- KiB/s";
+            mi.Eta = "--:--";
         }
     }
     
     public void Stop()
     {
-        if (_process != null && !_process.HasExited)
+        if (_downloadProcess != null && !_downloadProcess.HasExited)
         {
-            _process.Kill();
-            _process.Dispose();
-            _process = null;
+            _downloadProcess.Kill();
+            _downloadProcess.Dispose();
+            _downloadProcess = null;
             MainWindow.Logs.Add($"[STOP] Stopped download");
         }
     }
