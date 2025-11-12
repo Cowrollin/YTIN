@@ -64,13 +64,13 @@ public class Downloader
             }
             else
             {
-                MainWindow.Logs.Add($"[ERROR] No output received for URL: {url}");
+                MainWindow.Log($"No output received for URL: {url}", "[ERROR]");
             }
         }
         catch (Exception e)
         {
             Console.WriteLine($"error ! {e}");
-            MainWindow.Logs.Add($"[ERROR] Url is invalid: {url}");
+            MainWindow.Log($"Url is invalid: {url}", "[ERROR]");
             throw;
         }
         finally
@@ -230,7 +230,7 @@ public class Downloader
             _downloadProcess.Kill();
             _downloadProcess.Dispose();
             _downloadProcess = null;
-            MainWindow.Logs.Add($"[STOP] Stopped download");
+            MainWindow.Log($"Stopped download", "[WARN]");
         }
     }
 }

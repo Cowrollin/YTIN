@@ -54,7 +54,7 @@ public class JsonHelper
             Media = mediaInfo
         });
         await SaveHistoryToJsonAsync(history);
-        MainWindow.Logs.Add($"[INFO] Save new media. Title: {mediaInfo.Title}.");
+        MainWindow.Log($"Save new media. Title: {mediaInfo.Title}.", "[INFO]");
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public class JsonHelper
         if (toRemove != null)
         {
             history.Entries.Remove(toRemove);
-            MainWindow.Logs.Add($"[INFO] Removed media: {toRemove.Media.Title}");
+            MainWindow.Log($"Removed media: {toRemove.Media.Title}", "[INFO]");
         }
         
         foreach (var entry in history.Entries.Where(e => e.Type == "playlist" && e.Playlist?.MediaList != null))
@@ -103,7 +103,7 @@ public class JsonHelper
             if (mediaToRemove != null)
             {
                 entry.Playlist.MediaList.Remove(mediaToRemove);
-                MainWindow.Logs.Add($"[INFO] Removed from playlist '{entry.Playlist.PlaylistTitle}': {mediaToRemove.Title}");
+                MainWindow.Log($"Removed from playlist '{entry.Playlist.PlaylistTitle}': {mediaToRemove.Title}", "[INFO]");
             }
         }
 
@@ -121,7 +121,7 @@ public class JsonHelper
         });
 
         await SaveHistoryToJsonAsync(history);
-        MainWindow.Logs.Add($"[INFO] Saved playlist: {playlist.PlaylistTitle}");
+        MainWindow.Log($"Saved playlist: {playlist.PlaylistTitle}", "[INFO]");
     }
 
     public async Task RemovePlaylistByTitleAsync(string playlistTitle)
@@ -135,7 +135,7 @@ public class JsonHelper
         {
             history.Entries.Remove(toRemove);
             await SaveHistoryToJsonAsync(history);
-            MainWindow.Logs.Add($"[INFO] Removed playlist: {playlistTitle}");
+            MainWindow.Log($"Removed playlist: {playlistTitle}", "[INFO]");
         }
     }
 }

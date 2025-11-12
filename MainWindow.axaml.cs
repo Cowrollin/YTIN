@@ -13,10 +13,6 @@ using System.Threading.Tasks;
 
 namespace YTIN;
 
-// логика, если нет формата, берем следующий в списке по нижней границе 
-// поиск &list= значит плейлист
-// https://www.youtube.com/watch?v=IzuBj1vDGYM&list=PLxi_U6Wx-TZW5T015lBiiMA0Wbr39PfhK
-
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
     
@@ -74,12 +70,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public MainWindow()
     {
+        Log("------------- Start YTIN --------------", "[INFO]");
         DataContext = this;
         Loaded += async (s, e) => await UpdateDownloadsListAsync();
-        _ = AppConfig.LoadAsync();
+        AppConfig.Load();
+        
         DownloadDirectory = AppConfig.DownloadPath;
-        // DownloadDirectory = "D:/Downloads/VideoYTIN";
         InputUrl = "https://youtu.be/PPRjukghBYE?si=UsDKzQt3AfWqmNXZ";
+        
         InitializeComponent();
     }
 
@@ -103,7 +101,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (DataContext is MainWindow vm)
                 vm.DownloadDirectory = folder;
             AppConfig.DownloadPath = folder;
-            await AppConfig.SaveAsync();
+            AppConfig.Save();
         }
     }
     
@@ -141,7 +139,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 DownloadsList.Remove(single);
                 _ = _jsonHelper.RemoveMediaByIdAsync(media.Id);
-                Logs.Add($"[INFO] Removed media: {media.FileName}");
+                Log($"Removed media: {media.FileName}", "[INFO]");
                 return;
             }
             
@@ -153,7 +151,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 var videoToRemove = playlist.MediaList.First(v => v.Id == media.Id);
                 playlist.MediaList.Remove(videoToRemove);
                 _ = _jsonHelper.RemoveMediaByIdAsync(media.Id);
-                Logs.Add($"[INFO] Removed media: {media.FileName}");
+                Log($"Removed media: {media.FileName}", "[INFO]");
             }
         }
     }
@@ -169,7 +167,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 switch (entry.Type)
                 {
-                    case "Video" when entry.Media!= null:
+                    case "video" when entry.Media!= null:
                         DownloadsList.Add(entry.Media);
                         break;
 
@@ -178,12 +176,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         break;
                 }
             }
-            Logs.Add($"[INFO] Loaded {DownloadsList.Count} media and {DownloadsList.OfType<MediaInfo>().Count() +
-                                                                      DownloadsList.OfType<MediaPlaylist>().Sum(p => p.MediaList.Count)} playlists from history.");
+            Log($"Loaded {DownloadsList.Count} media and {DownloadsList.OfType<MediaInfo>().Count() +
+                                                                      DownloadsList.OfType<MediaPlaylist>().Sum(p => p.MediaList.Count)} playlists from history.", "[INFO]");
         }
         catch (Exception ex)
         {
-            Logs.Add($"[ERROR] Failed to load history: {ex.Message}");
+            Log($"Failed to load history: {ex.Message}", "[ERROR]");
             Console.WriteLine($"[history.json] Load error: {ex}");
         }
     }
@@ -192,26 +190,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         try
         {
-            Logs.Add($"[GETS] Gets information from url: {InputUrl}.");
+            Log($"Gets information from url: {InputUrl}.", "[INFO]");
             var playlist = await _downloader.GetMediaInfo(InputUrl);
 
             if (playlist.MediaList.Count == 1)
             {
                 var media = playlist.MediaList.First();
                 DownloadsList.Add(media);
-                Download(media);
-                await _jsonHelper.SaveMediaToHistoryJsonAsync(media);
+                Download(media, true);
             }
             else if (playlist.MediaList.Count > 1)
             {
                 DownloadsList.Add(playlist);
                 foreach (var media in playlist.MediaList)
                 {
-                    Download(media, playlist.PlaylistTitle);
+                    Download(media, false, playlist.PlaylistTitle);
                 }
                 await _jsonHelper.SavePlaylistToHistoryJsonAsync(playlist);
             }
-            else // TODO log
+            else
             {
                 Console.WriteLine("Ссылка нерабочая");
             }
@@ -222,7 +219,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private async void Download(MediaInfo mediaInfo, string playlistName = "")
+    private async void Download(MediaInfo mediaInfo, bool isPlaylist, string playlistName = "")
     {
         try
         {
@@ -248,19 +245,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     mediaInfo.Fps = miFormat.Fps;
                     arguments = $"-U -f {miFormat.FormatId} -P \"{mediaInfo.SavePath}\" {mediaInfo.Url}";
                     Console.WriteLine(arguments);
-                    Logs.Add($"[START] Download on title: {mediaInfo.Title}.{mediaInfo.Extinsion}.");
+                    Log($"Start download on title: {mediaInfo.Title}.{mediaInfo.Extinsion}.", "[INFO]");
                     await _downloader.StartDownloadAsync(arguments, mediaInfo);
                     mediaInfo.SaveDate = DateTime.Now;
-                    Logs.Add($"[COMPLETE] Download on title: {mediaInfo.Title}.{mediaInfo.Extinsion}.");
+                    if (isPlaylist)
+                        await _jsonHelper.SaveMediaToHistoryJsonAsync(mediaInfo);
+                    
+                    Log($"End download on title: {mediaInfo.Title}.{mediaInfo.Extinsion}.", "[INFO]");
                 }
                 else
                 {
-                    Logs.Add($"[ERROR] Not have this format ({SelectedFormat}) in title: {mediaInfo.FileName}.");
+                    Log($"Not have this format ({SelectedFormat}) in title: {mediaInfo.FileName}.", "[ERROR]");
                 }
             }
             else
             {
-                Logs.Add($"[ERROR] Not have any formats in title: {mediaInfo.FileName}.");
+                Log($"Not have any formats in title: {mediaInfo.FileName}.", "[ERROR]");
             }
         }
         catch (Exception e)
@@ -302,5 +302,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return int.Parse(match.Groups[3].Value);
         }
         return 0;
+    }
+
+    public static void Log(string message, string level = "INFO")
+    {
+        Logs.Add($"{level} {message}");
+        AppLog.Write(message, level);
     }
 }

@@ -59,6 +59,10 @@
         </Style>
     </Window.Styles>
 
+    <Window.Resources>
+        <local:LogLevelToBrushConverter x:Key="LogLevelToBrushConverter"/>
+    </Window.Resources>
+    
     <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="20">
         
         <!-- Поле ввода URL + кнопка загрузки -->
@@ -277,7 +281,8 @@
                                         <Border MinHeight="10" CornerRadius="8">
                                             <TextBlock Text="{Binding .}" 
                                                        FontSize="10" 
-                                                       Foreground="#DCDCDC" TextWrapping="Wrap"
+                                                       Foreground="{Binding ., Converter={StaticResource LogLevelToBrushConverter}}"
+                                                       TextWrapping="Wrap"
                                                        FontFamily="Consolas"
                                                        HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
                                         </Border>

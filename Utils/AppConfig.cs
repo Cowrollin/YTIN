@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace YTIN;
@@ -8,45 +10,51 @@ namespace YTIN;
 public static class AppConfig
 {
     public static string DownloadPath { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-    
-    
-    private static readonly string _configFilePath =  Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "config.cfg");
+    public static int MAX_LOG_LENGTH { get; set; } = 1024;
 
-    public static async Task LoadAsync()
+    private static readonly string ConfigFilePath =  Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "config.cfg");
+    public static void Load()
     {
-        if (!File.Exists(_configFilePath))
+        if (!File.Exists(ConfigFilePath))
         {
-            await SaveAsync();
+            Save();
             return;
         }
         
-        var lines = await File.ReadAllLinesAsync(_configFilePath);
-        foreach (var line in lines)
+        var lines = File.ReadAllLines(ConfigFilePath);
+        var dict = lines
+            .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#") && l.Contains('='))
+            .Select(l => l.Split('=',2))
+            .ToDictionary(k => k[0].Trim(), v => v[1].Trim());
+        
+        foreach (var prop in typeof(AppConfig).GetProperties(BindingFlags.Static | BindingFlags.Public))
         {
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-            var parts = line.Split('=', 2);
-            if (parts.Length != 2) continue;
+            if (!dict.TryGetValue(prop.Name, out var parameter)) continue;
 
-            var key = parts[0].Trim();
-            var value = parts[1].Trim();
-
-            switch (key)
+            try
             {
-                case "DownloadPath":
-                    DownloadPath = value;
-                    break;
-                // add parameter
+                var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                var convertedValue = Convert.ChangeType(parameter, targetType);
+                prop.SetValue(null, convertedValue);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
             }
         }
     }
     
-    public static async Task SaveAsync()
+    public static void Save()
     {
-        var lines = new List<string>
-        {
-            $"DownloadPath={DownloadPath}",
-        };
+        var lines = new List<string>();
 
-        await File.WriteAllLinesAsync(_configFilePath, lines);
+        foreach (var prop in typeof(AppConfig).GetProperties(BindingFlags.Static | BindingFlags.Public))
+        {
+            var value = prop.GetValue(null);
+            lines.Add($"{prop.Name}={value}");
+        }
+
+        File.WriteAllLines(ConfigFilePath, lines);
     }
 }
