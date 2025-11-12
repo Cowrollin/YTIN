@@ -128,9 +128,10 @@
                         CornerRadius="0 8 8 8" BoxShadow="0 2 6 #00000080">
                     <ScrollViewer>
                         <StackPanel>
+                            <!--Single media-->
                             <ItemsControl ItemsSource="{Binding DownloadsList}" Padding="5">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
+                                <ItemsControl.DataTemplates>
+                                    <DataTemplate DataType="{x:Type local:MediaInfo}">
                                         <Button CornerRadius="8" Background="#2D2D30" HorizontalAlignment="Stretch"
                                                 Height="30" Margin="0 0 0 6" VerticalContentAlignment="Bottom"
                                                 DoubleTapped="DownloadItem_IsClicked" Tag="{Binding}">
@@ -185,7 +186,78 @@
                                             </Grid>
                                         </Button>
                                     </DataTemplate>
-                                </ItemsControl.ItemTemplate>
+                            
+                            <!--Playlist media-->
+                                    <DataTemplate DataType="{x:Type local:MediaPlaylist}">
+                                        <Border CornerRadius="8 8 8 8" Background="Transparent" BorderBrush="#0078D7" BorderThickness="1 1 0 0"
+                                                Margin="0 0 0 10" Padding="10 0 5 0">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding PlaylistTitle}" 
+                                                           Foreground="#0078D7" FontWeight="Bold" Margin="0 0 0 0"
+                                                           FontSize="10" VerticalAlignment="Center" MaxLines="1"/>
+                                                <ItemsControl ItemsSource="{Binding MediaList}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate DataType="{x:Type local:MediaInfo}">
+                                                                <Button CornerRadius="8" Background="#2D2D30" HorizontalAlignment="Stretch"
+                                                                    Height="30" Margin="0 0 0 6" VerticalContentAlignment="Bottom"
+                                                                    DoubleTapped="DownloadItem_IsClicked" Tag="{Binding}">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <!-- FileName -->
+                                                                        <ColumnDefinition Width="*" MinWidth="30"/>
+                                                                        <!-- ProgressBar -->
+                                                                        <ColumnDefinition Width="200"/>
+                                                                        <!-- Speed -->
+                                                                        <ColumnDefinition Width="*" MaxWidth="60"/>
+                                                                        <!-- ETA -->
+                                                                        <ColumnDefinition Width="*" MaxWidth="50"/>
+                                                                        <!-- FileSize -->
+                                                                        <ColumnDefinition Width="*" MaxWidth="60"/>
+                                                                        <!-- RemoveButton -->
+                                                                        <ColumnDefinition Width="*" MaxWidth="40"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Grid.Column="0" Text="{Binding FileName}" 
+                                                                               FontSize="10"
+                                                                               Foreground="DarkGray" TextWrapping="NoWrap"
+                                                                               FontFamily="Consolas" MaxLines="1" Margin="5 5 -15 0"
+                                                                               HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                                                                    <ProgressBar Grid.Column="1" Minimum="0" Maximum="100"
+                                                                               FontFamily="Consolas" FontSize="15" 
+                                                                               HorizontalAlignment="Right" VerticalAlignment="Center" 
+                                                                               Margin="0 0 10 0"
+                                                                               Value="{Binding Progress}"
+                                                                               Foreground="#0078D7" ShowProgressText="True"
+                                                                               Height="15"/> 
+                                                                    <TextBlock Grid.Column="2" Text="{Binding Speed}"
+                                                                               FontSize="10" Margin="0 5 10 0"
+                                                                               Foreground="DarkGray" TextWrapping="Wrap"
+                                                                               FontFamily="Consolas" MaxLines="1"
+                                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="3" Text="{Binding Eta}"
+                                                                               FontSize="10" Margin="0 5 10 0"
+                                                                               Foreground="DarkGray" TextWrapping="Wrap"
+                                                                               FontFamily="Consolas" MaxLines="1"
+                                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                                    <TextBlock Grid.Column="4" Text="{Binding CompactSize}"
+                                                                               FontSize="10" Margin="0 5 0 0"
+                                                                               Foreground="DarkGray" TextWrapping="Wrap"
+                                                                               FontFamily="Consolas" MaxLines="1"
+                                                                               HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                                    <Button Grid.Column="5" Width="20" Height="20" Padding="3" Background="#0078D7"
+                                                                                Click="RemoveMediaItem_IsClicked" Tag="{Binding }"
+                                                                                VerticalAlignment="Center" HorizontalAlignment="Right" 
+                                                                                Margin="0 1 0 0">
+                                                                        <Image Source="avares://YTIN/Icons/close.png" Stretch="Uniform"/>
+                                                                    </Button>
+                                                                </Grid>
+                                                            </Button>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.DataTemplates>
                             </ItemsControl>
                         </StackPanel>
                     </ScrollViewer>
@@ -218,6 +290,5 @@
                 </Border>
             </TabItem>
         </TabControl>
-        
     </Grid>
 </Window>

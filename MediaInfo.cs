@@ -5,7 +5,9 @@ using System.ComponentModel;
 
 namespace YTIN;
 
-public class MediaInfo : INotifyPropertyChanged
+public interface IDownloadItem { }
+
+public class MediaInfo : INotifyPropertyChanged, IDownloadItem
 {
     private string _id;
     private string _fileName;

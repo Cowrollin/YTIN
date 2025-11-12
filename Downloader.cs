@@ -22,21 +22,23 @@ public class Downloader
     public event Action? OnErrorOccurred;
     public event Action? OnProgressUpdated;
 
-    public async Task<MediaInfo> GetMediaInfo(string url)
+    public async Task<MediaPlaylist> GetMediaInfo(string url)
     {
         _getInfoProcess = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "yt-dlp.exe"),
-                Arguments = $"--dump-json --no-warnings \"{url}\"",
+                Arguments = $"--dump-single-json --no-warnings \"{url}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true
             }
         };
-        
+        /*_getInfoProcess.Start();
+        string  outputTask = await _getInfoProcess.StandardOutput.ReadToEndAsync();
+        File.WriteAllText("D:\\debug_output.txt", outputTask);*/
         try
         {
             _getInfoProcess.Start();
@@ -57,7 +59,8 @@ public class Downloader
         
             if (!string.IsNullOrWhiteSpace(jsonOutput))
             {
-                return ParseMedia(jsonOutput);
+                var playlist = new MediaPlaylist();
+                return ParseMedia(jsonOutput, playlist);
             }
             else
             {
@@ -74,11 +77,31 @@ public class Downloader
         {
             _getInfoProcess.Dispose();
         }
-        
         return null!;
     }
     
-    private static MediaInfo ParseMedia(string? json)
+    private static MediaPlaylist ParseMedia(string? json, MediaPlaylist playlist)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        
+        if (root.TryGetProperty("entries", out var entries))
+        {
+            foreach (JsonElement element in entries.EnumerateArray())
+            {
+                playlist.MediaList.Add(ParseSingleMedia(element.ToString()));
+            }
+            playlist.PlaylistTitle = root.GetProperty("title").GetString();
+            playlist.Id = root.GetProperty("id").GetString();
+        }
+        else
+        {
+            playlist.MediaList.Add(ParseSingleMedia(json));
+        }
+        return playlist;
+    }
+
+    private static MediaInfo ParseSingleMedia(string? json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -86,25 +109,18 @@ public class Downloader
         var info = new MediaInfo
         {
             Id = root.TryGetProperty("id", out var id) ? id.GetString() : null,
-            Title = root.TryGetProperty("title", out var t) ? t.GetString() : null
+            Title = root.TryGetProperty("title", out var t) ? t.GetString() : null,
+            Url = root.TryGetProperty("webpage_url", out var url) ? url.GetString() : null,
         };
-
-        var formats = new ObservableCollection<MediaFormat>();
+        
         if (root.TryGetProperty("formats", out var formatsElement))
         {
             foreach (JsonElement element in formatsElement.EnumerateArray())
             {
-                var mediaFormat = new MediaFormat
-                {
-                    FormatId = GetJsonValueAsString(element, "format_id"),
-                    Ext = GetJsonValueAsString(element, "ext"),
-                    Resolution = GetJsonValueAsString(element, "resolution"),
-                    Fps = GetJsonValueAsString(element, "fps")
-                };
-                formats.Add(mediaFormat);
+                info.formats.Add(ParseMediaFormat(element));
             }
         }
-        info.formats = formats;
+
         return info;
     }
     private static string? GetJsonValueAsString(JsonElement element, string propertyName)
@@ -121,6 +137,19 @@ public class Downloader
             _ => null
         };
     }
+
+    private static MediaFormat ParseMediaFormat(JsonElement element)
+    {
+        return new MediaFormat
+        {
+            FormatId = GetJsonValueAsString(element, "format_id"),
+            Ext = GetJsonValueAsString(element, "ext"),
+            Resolution = GetJsonValueAsString(element, "resolution"),
+            Fps = GetJsonValueAsString(element, "fps")
+        };
+    }
+    
+    
     
     public async Task StartDownloadAsync(string arguments, MediaInfo mediaInfo)
     {
@@ -181,7 +210,7 @@ public class Downloader
                 mi.Progress = percent;
             }
             mi.Speed = $"{match.Groups["speed"].Value.Trim()}c";
-            mi.Eta = match.Groups["eta"].Value.Trim();
+            mi.Eta = $"{match.Groups["eta"].Value.Trim()}";
         }
 
         match = FinishedRegex.Match(line);

@@ -17,15 +17,20 @@ public class JsonHelper
         _historyPath = Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, filename);
     }
 
+    public class HistoryContainer
+    {
+        public ObservableCollection<HistoryEntry> Entries { get; set; } = new();
+    }
+
     /// <summary>
     /// Overwrites the history to a json file
     /// </summary>
     /// <param name="mediaList"> List for save</param>
-    private async Task SaveHistoryToJsonAsync(ObservableCollection<MediaInfo> mediaList)
+    private async Task SaveHistoryToJsonAsync(HistoryContainer container)
     {
         try
         {
-            var json = JsonConvert.SerializeObject(mediaList, Formatting.Indented);
+            var json = JsonConvert.SerializeObject(container, Formatting.Indented);
             await File.WriteAllTextAsync(_historyPath, json);
             Console.WriteLine("[history.json] Save media list.");
         }
@@ -42,9 +47,13 @@ public class JsonHelper
     /// <param name="mediaInfo"> Object for save</param>
     public async Task SaveMediaToHistoryJsonAsync(MediaInfo mediaInfo)
     {
-        ObservableCollection<MediaInfo> mediaList = await LoadHistoryFromJsonAsync();
-        mediaList.Add(mediaInfo);
-        await SaveHistoryToJsonAsync(mediaList);
+        var history  = await LoadHistoryFromJsonAsync();
+        history.Entries.Add(new HistoryEntry
+        {
+            Type = "video",
+            Media = mediaInfo
+        });
+        await SaveHistoryToJsonAsync(history);
         MainWindow.Logs.Add($"[INFO] Save new media. Title: {mediaInfo.Title}.");
     }
 
@@ -52,19 +61,19 @@ public class JsonHelper
     /// Loads the history from a json file. Creates a new file if the file does not exist
     /// </summary>
     /// <returns>List[MediaInfo]</returns>
-    public async Task<ObservableCollection<MediaInfo>> LoadHistoryFromJsonAsync()
+    public async Task<HistoryContainer> LoadHistoryFromJsonAsync()
     {
         try
         {
             if (!File.Exists(_historyPath))
             {
                 Console.WriteLine("[history.json] File does not exists. New file is created.");
-                return new ObservableCollection<MediaInfo>();
+                return new HistoryContainer();
             }
 
             var json = await File.ReadAllTextAsync(_historyPath);
-            var mediaList = JsonConvert.DeserializeObject<ObservableCollection<MediaInfo>>(json);
-            return mediaList ?? new ObservableCollection<MediaInfo>();
+            var history  = JsonConvert.DeserializeObject<HistoryContainer>(json);
+            return history ?? new HistoryContainer();
         }
         catch (Exception e)
         {
@@ -79,22 +88,61 @@ public class JsonHelper
     /// <param name="id">MediaInfo.Id</param>
     public async Task RemoveMediaByIdAsync(string id)
     {
-        var mediaList = await LoadHistoryFromJsonAsync();
-        var removeItem = mediaList.FirstOrDefault(m => m.Id == id);
-        if (removeItem is not null)
+        var history = await LoadHistoryFromJsonAsync();
+
+        var toRemove = history.Entries.FirstOrDefault(e => e.Type == "video" && e.Media?.Id == id);
+        if (toRemove != null)
         {
-            mediaList.Remove(removeItem);
-            await SaveHistoryToJsonAsync(mediaList);
-            MainWindow.Logs.Add($"[INFO] Remove media. Title: {removeItem.Title}.");
+            history.Entries.Remove(toRemove);
+            MainWindow.Logs.Add($"[INFO] Removed media: {toRemove.Media.Title}");
         }
+        
+        foreach (var entry in history.Entries.Where(e => e.Type == "playlist" && e.Playlist?.MediaList != null))
+        {
+            var mediaToRemove = entry.Playlist.MediaList.FirstOrDefault(v => v.Id == id);
+            if (mediaToRemove != null)
+            {
+                entry.Playlist.MediaList.Remove(mediaToRemove);
+                MainWindow.Logs.Add($"[INFO] Removed from playlist '{entry.Playlist.PlaylistTitle}': {mediaToRemove.Title}");
+            }
+        }
+
+        await SaveHistoryToJsonAsync(history);
     }
     
-    /// <summary>
-    /// Clears the history
-    /// </summary>
-    public async Task ClearHistoryAsync()
+    public async Task SavePlaylistToHistoryJsonAsync(MediaPlaylist playlist)
     {
-        await SaveHistoryToJsonAsync(new ObservableCollection<MediaInfo>());
-        MainWindow.Logs.Add($"[INFO] History cleared.");
+        var history = await LoadHistoryFromJsonAsync();
+
+        history.Entries.Add(new HistoryEntry
+        {
+            Type = "playlist",
+            Playlist = playlist
+        });
+
+        await SaveHistoryToJsonAsync(history);
+        MainWindow.Logs.Add($"[INFO] Saved playlist: {playlist.PlaylistTitle}");
     }
+
+    public async Task RemovePlaylistByTitleAsync(string playlistTitle)
+    {
+        var history = await LoadHistoryFromJsonAsync();
+
+        var toRemove = history.Entries.FirstOrDefault(e =>
+            e.Type == "playlist" && e.Playlist?.PlaylistTitle == playlistTitle);
+
+        if (toRemove != null)
+        {
+            history.Entries.Remove(toRemove);
+            await SaveHistoryToJsonAsync(history);
+            MainWindow.Logs.Add($"[INFO] Removed playlist: {playlistTitle}");
+        }
+    }
+}
+
+public class HistoryEntry
+{
+    public string Type { get; set; }
+    public MediaInfo? Media { get; set; }
+    public MediaPlaylist? Playlist { get; set; }
 }
