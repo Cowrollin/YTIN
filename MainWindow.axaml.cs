@@ -31,12 +31,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         { "2560x1440", "MP4 (1440p)"       },
         { "audio only", "MP3 (audio only)" },
     };
+    
     private readonly Downloader _downloader = new();
     private readonly JsonHelper _jsonHelper = new();
     
-    
     private string _inputUrl;
-    private string _downloadDirectory;
+    private string _downloadDirectory = AppConfig.DownloadPath;
     public string InputUrl { 
         get => _inputUrl;
         set
@@ -76,7 +76,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         DataContext = this;
         Loaded += async (s, e) => await UpdateDownloadsListAsync();
-        DownloadDirectory = "D:/Downloads/VideoYTIN";
+        _ = AppConfig.LoadAsync();
+        DownloadDirectory = AppConfig.DownloadPath;
+        // DownloadDirectory = "D:/Downloads/VideoYTIN";
         InputUrl = "https://youtu.be/PPRjukghBYE?si=UsDKzQt3AfWqmNXZ";
         InitializeComponent();
     }
@@ -100,6 +102,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (DataContext is MainWindow vm)
                 vm.DownloadDirectory = folder;
+            AppConfig.DownloadPath = folder;
+            await AppConfig.SaveAsync();
         }
     }
     
