@@ -36,9 +36,7 @@ public class Downloader
                 CreateNoWindow = true
             }
         };
-        /*_getInfoProcess.Start();
-        string  outputTask = await _getInfoProcess.StandardOutput.ReadToEndAsync();
-        File.WriteAllText("D:\\debug_output.txt", outputTask);*/
+        
         try
         {
             _getInfoProcess.Start();
@@ -150,7 +148,11 @@ public class Downloader
     }
     
     
-    
+    /// <summary>
+    /// Downloading media on url
+    /// </summary>
+    /// <param name="arguments"></param>
+    /// <param name="mediaInfo"></param>
     public async Task StartDownloadAsync(string arguments, MediaInfo mediaInfo)
     {
         _downloadProcess = new Process()
@@ -166,24 +168,46 @@ public class Downloader
             },
             EnableRaisingEvents = true
         };
-        
-        _downloadProcess.OutputDataReceived += (s, e) =>
-        {
-            Console.WriteLine(e.Data);
-            ParseProgress(e.Data, mediaInfo);
-        };
-        _downloadProcess.ErrorDataReceived += (s, e) =>
-        {
-            Console.WriteLine(e.Data);
-        };
-        _downloadProcess.Exited += (s, e) => OnDownloadFinished?.Invoke();
 
-        _downloadProcess.Start();
-        _downloadProcess.BeginOutputReadLine();
-        _downloadProcess.BeginErrorReadLine();
+        try
+        {
+            _downloadProcess.OutputDataReceived += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(e.Data))
+                    return;
+
+                Console.WriteLine(e.Data);
+                ParseProgress(e.Data, mediaInfo);
+            };
+            _downloadProcess.ErrorDataReceived += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(e.Data))
+                    return;
+
+                Console.WriteLine(e.Data);
+                if (ParseError(e.Data, mediaInfo))
+                {
+                    throw new Exception("yt-dlp exited");
+                }
+            };
+            _downloadProcess.Exited += (s, e) => OnDownloadFinished?.Invoke();
+
+            _downloadProcess.Start();
+            _downloadProcess.BeginOutputReadLine();
+            _downloadProcess.BeginErrorReadLine();
+
+            await _downloadProcess.WaitForExitAsync();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+        finally
+        {
+            _downloadProcess.Dispose();
+        }
         
-        await _downloadProcess.WaitForExitAsync();
-        _downloadProcess.Dispose();
     }
 
     private void ParseProgress(string? line, MediaInfo mi)
@@ -222,15 +246,55 @@ public class Downloader
             mi.Eta = "00:00";
         }
     }
-    
-    public void Stop()
+
+    private bool ParseError(string errorLine, MediaInfo mi)
     {
-        if (_downloadProcess != null && !_downloadProcess.HasExited)
+        var knownErrors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            _downloadProcess.Kill();
-            _downloadProcess.Dispose();
-            _downloadProcess = null;
-            MainWindow.Log($"Stopped download", "[WARN]");
+            //{ "ERROR:", "Critical error during download." },
+            { "HTTP Error", "Network issue or invalid URL." },
+            { "404", "Video not found (HTTP 404)." },
+            { "Unsupported URL", "Unsupported link format." },
+            { "Unable to extract", "Video information could not be extracted." },
+            { "Geo-restricted", "Video is restricted in your region." },
+            { "This video is private", "The video is private." },
+            { "Sign in to confirm your age", "Age restriction: login required." },
+            { "broken", "Download broken or incomplete." },
+        };
+        
+        var match = knownErrors.FirstOrDefault(kv => errorLine.Contains(kv.Key, StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrEmpty(match.Key))
+        {
+            AppLog.Write($"[YT-DLP ERROR] {match.Value} ({errorLine})", "ERROR");
+
+            StopProcess(_downloadProcess, mi);
+            return true;
+        }
+        else if (errorLine.Contains("error", StringComparison.OrdinalIgnoreCase))
+        {
+            AppLog.Write($"[YT-DLP ERROR] Unknown error: {errorLine}", "ERROR");
+
+            StopProcess(_downloadProcess, mi);
+            return true;
+        }
+        return false;
+    }
+
+    private static void StopProcess(Process process, MediaInfo mi)
+    {
+        try
+        {
+            if (process is {HasExited: false})
+            {
+                process.Kill(true);
+                process.Dispose();
+                MainWindow.Log($"Stopped download", "[WARN]");
+            }
+        }
+        catch (Exception e)
+        {
+            MainWindow.Log($"The download stopped with an error: {e.Data}", "[ERROR]");
         }
     }
 }

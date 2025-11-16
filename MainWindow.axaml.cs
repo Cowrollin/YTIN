@@ -61,7 +61,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<string> FormatList { get; } = new(FormatMap.Values); // List formats values for view (MainWindow.axaml)
     
     
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public new event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -76,6 +76,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         AppConfig.Load();
         
         DownloadDirectory = AppConfig.DownloadPath;
+        SelectedFormat = AppConfig.DownloadFormat;
         InputUrl = "https://youtu.be/PPRjukghBYE?si=UsDKzQt3AfWqmNXZ";
         
         InitializeComponent();
@@ -90,6 +91,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public void ChangeFormatDownload_IsComboBoxSelect(object? sender, SelectionChangedEventArgs selectionChangedEventArgs)
     {
         SelectedFormat = selectionChangedEventArgs.AddedItems[0].ToString();
+        AppConfig.DownloadFormat = SelectedFormat;
     }
 
     // select save folder
@@ -152,6 +154,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 playlist.MediaList.Remove(videoToRemove);
                 _ = _jsonHelper.RemoveMediaByIdAsync(media.Id);
                 Log($"Removed media: {media.FileName}", "[INFO]");
+                if (playlist.MediaList.Count == 0)
+                {
+                    DownloadsList.Remove(playlist);
+                    _ = _jsonHelper.RemovePlaylistByTitleAsync(media.Id);
+                }
             }
         }
     }
@@ -219,7 +226,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private async void Download(MediaInfo mediaInfo, bool isPlaylist, string playlistName = "")
+    private async void Download(MediaInfo mediaInfo, bool isSingleMedia, string playlistName = "")
     {
         try
         {
@@ -248,7 +255,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     Log($"Start download on title: {mediaInfo.Title}.{mediaInfo.Extinsion}.", "[INFO]");
                     await _downloader.StartDownloadAsync(arguments, mediaInfo);
                     mediaInfo.SaveDate = DateTime.Now;
-                    if (isPlaylist)
+                    if (isSingleMedia)
                         await _jsonHelper.SaveMediaToHistoryJsonAsync(mediaInfo);
                     
                     Log($"End download on title: {mediaInfo.Title}.{mediaInfo.Extinsion}.", "[INFO]");
@@ -265,7 +272,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch (Exception e)
         {
-            throw; // TODO handle exception
+            DownloadsList.Remove(mediaInfo);
+            await _jsonHelper.RemoveMediaByIdAsync(mediaInfo.Id);
         }
     }
 
@@ -308,5 +316,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         Logs.Add($"{level} {message}");
         AppLog.Write(message, level);
+    }
+
+    public void DeleteMedia(MediaInfo mediaInfo)
+    {
+        DownloadsList.Remove(mediaInfo);
+        
     }
 }

@@ -10,6 +10,7 @@ namespace YTIN;
 public static class AppConfig
 {
     public static string DownloadPath { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+    public static string DownloadFormat { get; set; } = "MP4 (720p)";
     public static int MAX_LOG_LENGTH { get; set; } = 1024;
 
     private static readonly string ConfigFilePath =  Path.Combine(Directory.GetParent(Environment.CurrentDirectory).Parent.Parent.FullName, "config.cfg");
